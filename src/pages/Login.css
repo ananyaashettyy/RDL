@@ -1,0 +1,52 @@
+.login-footer {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: 2.4fr 1fr;
+  gap: 20px;
+  padding: 14px 18px;
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.62) 0%, rgba(15, 23, 42, 0.86) 100%);
+  backdrop-filter: blur(2px);
+  border-top: 1px solid rgba(148, 163, 184, 0.28);
+  color: #e2e8f0;
+}
+
+.login-footer-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #ffffff;
+  margin-bottom: 4px;
+}
+
+.login-footer-line {
+  font-size: 12px;
+  line-height: 1.45;
+  color: #e2e8f0;
+}
+
+.login-footer-right {
+  text-align: right;
+}
+
+@media (max-width: 900px) {
+  .login-footer {
+    grid-template-columns: 1fr;
+    gap: 8px;
+    padding: 12px 14px;
+  }
+
+  .login-footer-right {
+    text-align: left;
+  }
+
+  .login-footer-title {
+    font-size: 12px;
+  }
+
+  .login-footer-line {
+    font-size: 11px;
+  }
+}

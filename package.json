@@ -1,0 +1,55 @@
+{
+  "name": "attendance-system",
+  "version": "1.0.0",
+  "private": true,
+  "main": "electron/main.js",
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-scripts": "5.0.1",
+    "react-router-dom": "^6.22.0",
+    "recharts": "^2.12.0",
+    "axios": "^1.6.7"
+  },
+  "scripts": {
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "desktop": "npm run build && electron .",
+    "desktop:dist": "npm run build && electron-builder --win nsis"
+  },
+  "devDependencies": {
+    "electron": "^32.2.0",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "extends": null,
+    "appId": "com.attendance.system",
+    "productName": "Attendance System",
+    "extraMetadata": {
+      "main": "electron/main.js"
+    },
+    "files": [
+      "build/**/*",
+      "electron/**/*",
+      "package.json"
+    ],
+    "directories": {
+      "output": "dist-desktop"
+    },
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "signAndEditExecutable": false
+    },
+    "nsis": {
+      "oneClick": true,
+      "allowToChangeInstallationDirectory": false
+    }
+  },
+  "browserslist": {
+    "production": [">0.2%", "not dead"],
+    "development": ["last 1 chrome version"]
+  },
+  "proxy": "http://localhost/attendance-api"
+}
