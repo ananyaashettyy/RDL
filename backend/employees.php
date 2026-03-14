@@ -65,10 +65,10 @@ switch ($method) {
         break;
 
     case 'DELETE':
-        $stmt = $db->prepare("UPDATE employees SET status='inactive' WHERE id=?");
+        $stmt = $db->prepare("DELETE FROM employees WHERE id=?");
         $stmt->bind_param('i', $id);
         $stmt->execute();
-        echo json_encode(['success' => true]);
+        echo json_encode(['success' => true, 'deleted' => $stmt->affected_rows]);
         break;
 }
 

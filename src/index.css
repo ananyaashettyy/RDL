@@ -21,6 +21,7 @@ body[data-theme='light'] {
   --text-muted: #475569;
   --text-soft: #94a3b8;
   --border-color: #e2e8f0;
+  --hard-text: #000000;
 }
 
 body[data-theme='dark'] {
@@ -31,6 +32,7 @@ body[data-theme='dark'] {
   --text-muted: #cbd5e1;
   --text-soft: #94a3b8;
   --border-color: #334155;
+  --hard-text: #ffffff;
 }
 
 ::-webkit-scrollbar { width: 6px; height: 6px; }

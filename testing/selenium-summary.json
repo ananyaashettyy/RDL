@@ -1,0 +1,222 @@
+{
+  "1": {
+    "actual": "Role selector loaded with Admin and User buttons.",
+    "status": "Pass",
+    "observation": ""
+  },
+  "2": {
+    "actual": "Admin login page visible.",
+    "status": "Pass",
+    "observation": ""
+  },
+  "3": {
+    "actual": "User login page visible.",
+    "status": "Pass",
+    "observation": ""
+  },
+  "4": {
+    "actual": "Admin login accepted and dashboard loaded.",
+    "status": "Pass",
+    "observation": ""
+  },
+  "5": {
+    "actual": "Invalid admin credentials rejected with error.",
+    "status": "Pass",
+    "observation": ""
+  },
+  "6": {
+    "actual": "Validation error shown for empty username.",
+    "status": "Pass",
+    "observation": ""
+  },
+  "7": {
+    "actual": "Validation error shown for empty password.",
+    "status": "Pass",
+    "observation": ""
+  },
+  "8": {
+    "actual": "Back navigated to role selector.",
+    "status": "Pass",
+    "observation": ""
+  },
+  "9": {
+    "actual": "Password input masked.",
+    "status": "Pass",
+    "observation": ""
+  },
+  "10": {
+    "actual": "Uppercase credentials rejected for user portal.",
+    "status": "Pass",
+    "observation": ""
+  },
+  "11": {
+    "actual": "Username must match password for user portal.",
+    "status": "Pass",
+    "observation": ""
+  },
+  "12": {
+    "actual": "User login accepted for generated account.",
+    "status": "Pass",
+    "observation": ""
+  },
+  "13": {
+    "actual": "Unknown username rejected.",
+    "status": "Pass",
+    "observation": ""
+  },
+  "14": {
+    "actual": "Logout redirected to role selector.",
+    "status": "Pass",
+    "observation": ""
+  },
+  "15": {
+    "actual": "Protected route redirected to login after logout.",
+    "status": "Pass",
+    "observation": ""
+  },
+  "16": {
+    "actual": "Failed: Admin unknown route redirects to admin home",
+    "status": "Fail",
+    "observation": "Message: \nStacktrace:\nSymbols not available. Dumping unresolved backtrace:\n\t0x7ff7c04f7c25\n\t0x7ff7c04f7c84\n\t0x7ff7c083ad0a\n\t0x7ff7c0293696\n\t0x7ff7c0293935\n\t0x7ff7c02d13f7\n\t0x7ff7c028a307\n\t0x7ff7c02cf1e7\n\t0x7ff7c0289a1c\n\t0x7ff7c0288c76\n\t0x7ff7c0289843\n\t0x7ff7c0350564\n\t0x7ff7c034ca03\n\t0x7ff7c035d0c3\n\t0x7ff7c0512308\n\t0x7ff7c051abe6\n\t0x7ff7c04ff264\n\t0x7ff7c04ff3a9\n\t0x7ff7c04ed1e2\n\t0x7ffa0f7ce8d7\n\t0x7ffa114ec40c\n"
+  },
+  "17": {
+    "actual": "Failed: User unknown route redirects to user home",
+    "status": "Fail",
+    "observation": "Message: \nStacktrace:\nSymbols not available. Dumping unresolved backtrace:\n\t0x7ff7c04f7c25\n\t0x7ff7c04f7c84\n\t0x7ff7c083ad0a\n\t0x7ff7c0293696\n\t0x7ff7c0293935\n\t0x7ff7c02d13f7\n\t0x7ff7c028a307\n\t0x7ff7c02cf1e7\n\t0x7ff7c0289a1c\n\t0x7ff7c0288c76\n\t0x7ff7c0289843\n\t0x7ff7c0350564\n\t0x7ff7c034ca03\n\t0x7ff7c035d0c3\n\t0x7ff7c0512308\n\t0x7ff7c051abe6\n\t0x7ff7c04ff264\n\t0x7ff7c04ff3a9\n\t0x7ff7c04ed1e2\n\t0x7ffa0f7ce8d7\n\t0x7ffa114ec40c\n"
+  },
+  "18": {
+    "actual": "Employee list rendered (found Raghavendra G Shetty).",
+    "status": "Pass",
+    "observation": ""
+  },
+  "19": {
+    "actual": "Search filtered employee list from 101 to 1.",
+    "status": "Pass",
+    "observation": ""
+  },
+  "20": {
+    "actual": "Selected employee Raghavendra G Shetty and opened attendance.",
+    "status": "Pass",
+    "observation": ""
+  },
+  "21": {
+    "actual": "Failed: Sidebar collapse toggle works",
+    "status": "Fail",
+    "observation": "Message: \nStacktrace:\nSymbols not available. Dumping unresolved backtrace:\n\t0x7ff7c04f7c25\n\t0x7ff7c04f7c84\n\t0x7ff7c083ad0a\n\t0x7ff7c0293696\n\t0x7ff7c0293935\n\t0x7ff7c02d13f7\n\t0x7ff7c028a307\n\t0x7ff7c02cf1e7\n\t0x7ff7c0289a1c\n\t0x7ff7c0288c76\n\t0x7ff7c0289843\n\t0x7ff7c0350564\n\t0x7ff7c034ca03\n\t0x7ff7c035d0c3\n\t0x7ff7c0512308\n\t0x7ff7c051abe6\n\t0x7ff7c04ff264\n\t0x7ff7c04ff3a9\n\t0x7ff7c04ed1e2\n\t0x7ffa0f7ce8d7\n\t0x7ffa114ec40c\n"
+  },
+  "22": {
+    "actual": "Month/year selectors visible.",
+    "status": "Pass",
+    "observation": ""
+  },
+  "23": {
+    "actual": "Month changed to 11 and attendance header updated.",
+    "status": "Pass",
+    "observation": ""
+  },
+  "24": {
+    "actual": "Theme toggled from light to dark.",
+    "status": "Pass",
+    "observation": ""
+  },
+  "25": {
+    "actual": "Theme persisted as light after refresh.",
+    "status": "Pass",
+    "observation": ""
+  },
+  "26": {
+    "actual": "Admin dashboard loaded.",
+    "status": "Pass",
+    "observation": ""
+  },
+  "27": {
+    "actual": "User dashboard loaded.",
+    "status": "Pass",
+    "observation": ""
+  },
+  "28": {
+    "actual": "Total Employees KPI shows 101.",
+    "status": "Pass",
+    "observation": ""
+  },
+  "29": {
+    "actual": "Departments KPI shows 4.",
+    "status": "Pass",
+    "observation": ""
+  },
+  "30": {
+    "actual": "Failed: Most present name and days computed",
+    "status": "Fail",
+    "observation": ""
+  },
+  "31": {
+    "actual": "Failed: Most absent name and days computed",
+    "status": "Fail",
+    "observation": ""
+  },
+  "32": {
+    "actual": "Failed: Department present and absent chart renders",
+    "status": "Fail",
+    "observation": ""
+  },
+  "33": {
+    "actual": "Failed: Attendance rate trend renders",
+    "status": "Fail",
+    "observation": ""
+  },
+  "35": {
+    "actual": "Admin late/early cards visible.",
+    "status": "Pass",
+    "observation": ""
+  },
+  "36": {
+    "actual": "Admin overtime cards visible.",
+    "status": "Pass",
+    "observation": ""
+  },
+  "41": {
+    "actual": "Team page loaded.",
+    "status": "Pass",
+    "observation": ""
+  },
+  "42": {
+    "actual": "Team filter reduced cards from 100 to 4.",
+    "status": "Pass",
+    "observation": ""
+  },
+  "43": {
+    "actual": "Team card navigated to attendance page.",
+    "status": "Pass",
+    "observation": ""
+  },
+  "44": {
+    "actual": "Attendance progress bar rendered.",
+    "status": "Pass",
+    "observation": ""
+  },
+  "45": {
+    "actual": "Failed: Attendance page requires selected employee",
+    "status": "Fail",
+    "observation": "Message: \nStacktrace:\nSymbols not available. Dumping unresolved backtrace:\n\t0x7ff7c04f7c25\n\t0x7ff7c04f7c84\n\t0x7ff7c083ad0a\n\t0x7ff7c0293696\n\t0x7ff7c0293935\n\t0x7ff7c02d13f7\n\t0x7ff7c028a307\n\t0x7ff7c02cf1e7\n\t0x7ff7c0289a1c\n\t0x7ff7c0288c76\n\t0x7ff7c0289843\n\t0x7ff7c0350564\n\t0x7ff7c034ca03\n\t0x7ff7c035d0c3\n\t0x7ff7c0512308\n\t0x7ff7c051abe6\n\t0x7ff7c04ff264\n\t0x7ff7c04ff3a9\n\t0x7ff7c04ed1e2\n\t0x7ffa0f7ce8d7\n\t0x7ffa114ec40c\n"
+  },
+  "46": {
+    "actual": "Calendar grid rendered with weekday headers.",
+    "status": "Pass",
+    "observation": ""
+  },
+  "47": {
+    "actual": "Failed: Day cells show status by color and tooltip",
+    "status": "Fail",
+    "observation": "('Connection aborted.', ConnectionResetError(10054, 'An existing connection was forcibly closed by the remote host', None, 10054, None))"
+  },
+  "60": {
+    "actual": "Failed: Notifications icon opens panel",
+    "status": "Fail",
+    "observation": "HTTPConnectionPool(host='localhost', port=57095): Max retries exceeded with url: /session/6c7a54828f779d7544736d3c7745cb95/url (Caused by NewConnectionError(\"HTTPConnection(host='localhost', port=57095): Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it\"))"
+  },
+  "68": {
+    "actual": "Failed: Report page requires selected employee",
+    "status": "Fail",
+    "observation": "HTTPConnectionPool(host='localhost', port=57095): Max retries exceeded with url: /session/6c7a54828f779d7544736d3c7745cb95/url (Caused by NewConnectionError(\"HTTPConnection(host='localhost', port=57095): Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it\"))"
+  }
+}

@@ -1,7 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { MONTHS, NATIONAL_HOLIDAYS } from '../data/employees';
-import { getLeavesForEmployeeMonth } from '../utils/leaveStorage';
+import { getLeavesForEmployeeMonth, subscribeLeaves } from '../utils/leaveStorage';
+import {
+  DEFAULT_ATTENDANCE_RULES,
+  evaluateLateEarly,
+  getAttendanceRuleConfig,
+  saveAttendanceRuleConfig,
+} from '../utils/attendanceRules';
 
 const pad = n => String(n).padStart(2, '0');
 const DAYS_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -86,9 +92,18 @@ const STATUS_COLORS = {
   weekend: '#6b7280',
 };
 
-export default function Report({ employee, selectedMonth, showNotif }) {
+export default function Report({ employee, selectedMonth, showNotif, authPortal }) {
+  const panelBg = 'var(--surface-bg)';
+  const inputBg = 'var(--input-bg)';
+  const border = 'var(--border-color)';
+  const textMain = 'var(--text-main)';
+  const textMuted = 'var(--text-muted)';
+  const textSoft = 'var(--text-soft)';
+  const isDark = typeof document !== 'undefined' && document.body.getAttribute('data-theme') === 'dark';
   const [range, setRange] = useState('Month');
-  if (!employee) return <div style={{ padding: 40, color: '#94a3b8' }}>Select an employee.</div>;
+  const [, setLeavesVersion] = useState(0);
+  const [ruleConfig, setRuleConfig] = useState(() => getAttendanceRuleConfig());
+  if (!employee) return <div style={{ padding: 40, color: textSoft }}>Select an employee.</div>;
 
   const [yr, mo] = selectedMonth.split('-').map(Number);
   const records   = employee.attendance[selectedMonth] || [];
@@ -99,6 +114,12 @@ export default function Report({ employee, selectedMonth, showNotif }) {
   const [dateTo, setDateTo] = useState(monthEnd);
   const workDays  = records.filter(r => r.status !== 'weekend');
   const monthLeaves = getLeavesForEmployeeMonth(employee.id, selectedMonth);
+
+  useEffect(() => {
+    return subscribeLeaves(() => {
+      setLeavesVersion((v) => v + 1);
+    });
+  }, []);
 
   useEffect(() => {
     setDateFrom(monthStart);
@@ -147,6 +168,24 @@ export default function Report({ employee, selectedMonth, showNotif }) {
     absent: visibleEffectiveStatuses.filter((s) => s === 'absent').length,
     total: visibleEffectiveStatuses.filter((s) => s === 'present' || s === 'absent').length,
   };
+  const lateEarlyCounts = visibleRecords.reduce((acc, rec) => {
+    const dateStr = `${yr}-${pad(mo)}-${pad(rec.day)}`;
+    const holidayName = NATIONAL_HOLIDAYS[dateStr];
+    const leaveType = monthLeaves[dateStr];
+    const leaveStatus = leaveType === 'paid' ? 'paid-leave'
+      : leaveType === 'earned' ? 'earned-leave'
+      : leaveType === 'training' ? 'training-leave'
+      : null;
+    const status = holidayName ? 'national-holiday' : leaveStatus || rec.status;
+
+    if (status !== 'present') return acc;
+
+    const { isLateEntry, isEarlyExit } = evaluateLateEarly(rec, ruleConfig);
+    return {
+      late: acc.late + (isLateEntry ? 1 : 0),
+      early: acc.early + (isEarlyExit ? 1 : 0),
+    };
+  }, { late: 0, early: 0 });
   const totalHrs  = `${Math.floor(stats.present * 8.3)}h ${Math.floor((stats.present * 8.3 % 1) * 60)}m`;
   const formatDateKey = (dateKey) => {
     const [y, m, d] = dateKey.split('-').map(Number);
@@ -201,6 +240,7 @@ export default function Report({ employee, selectedMonth, showNotif }) {
       : null;
     const status = isHoliday ? 'national-holiday' : leaveStatus || rec.status;
     const isPresent = status === 'present';
+    const { isLateEntry, isEarlyExit } = evaluateLateEarly(rec, ruleConfig);
     const dayName = DAYS_FULL[date.getDay()];
     const statusLabel = isHoliday
       ? `National Holiday (${holidayName})`
@@ -223,12 +263,14 @@ export default function Report({ employee, selectedMonth, showNotif }) {
       logoutForLunch: isPresent ? (rec.logoutForLunch || '--') : '--',
       loginFromLunch: isPresent ? (rec.loginFromLunch || '--') : '--',
       logout: isPresent ? (rec.logout || rec.outTime || '--') : '--',
+      lateEntry: isPresent ? (isLateEntry ? 'Yes' : 'No') : '--',
+      earlyExit: isPresent ? (isEarlyExit ? 'Yes' : 'No') : '--',
       statusLabel,
     };
   });
 
   const handleExportCsv = () => {
-    const headers = ['Date', 'Day', 'In Time', 'Logout for Lunch', 'Login from Lunch', 'Logout', 'Status'];
+    const headers = ['Date', 'Day', 'In Time', 'Logout for Lunch', 'Login from Lunch', 'Logout', 'Late Entry', 'Early Exit', 'Status'];
     const bodyLines = exportRows.map((row) => ([
       row.dateLabel,
       row.dayLabel,
@@ -236,6 +278,8 @@ export default function Report({ employee, selectedMonth, showNotif }) {
       row.logoutForLunch,
       row.loginFromLunch,
       row.logout,
+      row.lateEntry,
+      row.earlyExit,
       row.statusLabel,
     ].map(escapeCsv).join(',')));
     const csv = [headers.join(','), ...bodyLines].join('\n');
@@ -255,9 +299,10 @@ export default function Report({ employee, selectedMonth, showNotif }) {
     const lines = [
       `${employee.displayName} - Attendance Report`,
       `Month: ${selectedMonth} | Range: ${rangeLabel}`,
-      'Date | Day | In Time | Logout for Lunch | Login from Lunch | Logout | Status',
-      '--------------------------------------------------------------------------------',
-      ...exportRows.map((row) => `${row.dateLabel} | ${row.dayLabel} | ${row.inTime} | ${row.logoutForLunch} | ${row.loginFromLunch} | ${row.logout} | ${row.statusLabel}`),
+      `Rules: Late after ${ruleConfig.lateAfter}, Early exit before ${ruleConfig.earlyBefore}`,
+      'Date | Day | In Time | Logout for Lunch | Login from Lunch | Logout | Late | Early Exit | Status',
+      '-----------------------------------------------------------------------------------------------------',
+      ...exportRows.map((row) => `${row.dateLabel} | ${row.dayLabel} | ${row.inTime} | ${row.logoutForLunch} | ${row.loginFromLunch} | ${row.logout} | ${row.lateEntry} | ${row.earlyExit} | ${row.statusLabel}`),
     ];
 
     const linesPerPage = 54;
@@ -312,17 +357,61 @@ export default function Report({ employee, selectedMonth, showNotif }) {
           </div>
         </div>
       </div>
+      {authPortal !== 'USER' && (
+      <div style={{ background: panelBg, borderRadius: 14, padding: '12px 16px', boxShadow: '0 1px 6px rgba(0,0,0,0.06)', marginBottom: 20, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14, flexWrap: 'wrap', border: `1px solid ${border}` }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+          <span style={{ fontSize: 12, fontWeight: 700, color: textMain }}>Late/Early Rules</span>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: textMuted }}>
+            Late after
+            <input
+              type="time"
+              value={ruleConfig.lateAfter}
+              onChange={(e) => {
+                const next = saveAttendanceRuleConfig({ ...ruleConfig, lateAfter: e.target.value });
+                setRuleConfig(next);
+              }}
+              style={{ height: 30, borderRadius: 8, border: `1px solid ${border}`, padding: '0 8px', fontSize: 12, background: inputBg, color: textMain }}
+            />
+          </label>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: textMuted }}>
+            Early exit before
+            <input
+              type="time"
+              value={ruleConfig.earlyBefore}
+              onChange={(e) => {
+                const next = saveAttendanceRuleConfig({ ...ruleConfig, earlyBefore: e.target.value });
+                setRuleConfig(next);
+              }}
+              style={{ height: 30, borderRadius: 8, border: `1px solid ${border}`, padding: '0 8px', fontSize: 12, background: inputBg, color: textMain }}
+            />
+          </label>
+          <button
+            type="button"
+            onClick={() => {
+              const next = saveAttendanceRuleConfig(DEFAULT_ATTENDANCE_RULES);
+              setRuleConfig(next);
+            }}
+            style={{ height: 30, borderRadius: 8, border: `1px solid ${border}`, background: inputBg, color: textMain, padding: '0 12px', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}
+          >
+            Reset
+          </button>
+        </div>
+        <div style={{ fontSize: 12, color: textMuted }}>
+          Applied rules: <strong>{ruleConfig.lateAfter}</strong> / <strong>{ruleConfig.earlyBefore}</strong>
+        </div>
+      </div>
+      )}
 
       {/* Chart */}
-      <div style={{ background: '#fff', borderRadius: 14, padding: 24, boxShadow: '0 1px 6px rgba(0,0,0,0.06)', marginBottom: 20 }}>
+      <div style={{ background: panelBg, borderRadius: 14, padding: 24, boxShadow: '0 1px 6px rgba(0,0,0,0.06)', marginBottom: 20, border: `1px solid ${border}` }}>
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
-          <span style={{ fontSize: 28, fontWeight: 700, color: '#1e293b' }}>{totalHrs}</span>
+          <span style={{ fontSize: 28, fontWeight: 700, color: textMain }}>{totalHrs}</span>
         </div>
         <ResponsiveContainer width="100%" height={300}>
           <BarChart data={chartData} barSize={20}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-            <XAxis dataKey="day" tick={{ fontSize: 11, fill: '#94a3b8' }} />
-            <YAxis tick={{ fontSize: 11, fill: '#94a3b8' }} tickFormatter={v => v + 'h'} />
+            <CartesianGrid strokeDasharray="3 3" stroke={isDark ? '#334155' : '#f1f5f9'} />
+            <XAxis dataKey="day" tick={{ fontSize: 11, fill: textSoft }} />
+            <YAxis tick={{ fontSize: 11, fill: textSoft }} tickFormatter={v => v + 'h'} />
             <Tooltip
               labelFormatter={(label, payload) => payload?.[0]?.payload?.fullDate || label}
               formatter={(_v, _name, item) => {
@@ -342,10 +431,10 @@ export default function Report({ employee, selectedMonth, showNotif }) {
                       : 'Work';
                 return [item?.payload?.hours?.toFixed(1) + ' hrs', label];
               }}
-              contentStyle={{ borderRadius: 8, fontSize: 13 }}
+              contentStyle={{ borderRadius: 8, fontSize: 13, background: panelBg, border: `1px solid ${border}`, color: textMain }}
             />
             <Bar dataKey="chartValue" fill="#2563eb" radius={[4,4,0,0]}
-              label={{ position: 'top', fontSize: 10, fill: '#64748b', formatter: v => v >= 1 ? v.toFixed(0)+'h' : '' }}
+              label={{ position: 'top', fontSize: 10, fill: textMuted, formatter: v => v >= 1 ? v.toFixed(0)+'h' : '' }}
             >
               {chartData.map((entry, idx) => (
                 <Cell
@@ -359,26 +448,28 @@ export default function Report({ employee, selectedMonth, showNotif }) {
       </div>
 
       {/* Summary cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16, marginBottom: 20 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 16, marginBottom: 20 }}>
         {[
           { label: 'Present Days',   value: stats.present, color: '#16a34a' },
           { label: 'Absent Days',    value: stats.absent,  color: '#ef4444' },
           { label: 'Total Work Days',value: stats.total,   color: '#2563eb' },
           { label: 'Attendance %',   value: stats.total > 0 ? Math.round(stats.present/stats.total*100)+'%' : '0%', color: '#7c3aed' },
+          { label: 'Late Entries',   value: lateEarlyCounts.late, color: '#f59e0b' },
+          { label: 'Early Exits',    value: lateEarlyCounts.early, color: '#ea580c' },
         ].map((c, i) => (
-          <div key={i} style={{ background: '#fff', borderRadius: 14, padding: '16px 20px', boxShadow: '0 1px 6px rgba(0,0,0,0.06)', borderTop: `4px solid ${c.color}`, textAlign: 'center' }}>
-            <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 6 }}>{c.label}</div>
+          <div key={i} style={{ background: panelBg, borderRadius: 14, padding: '16px 20px', boxShadow: '0 1px 6px rgba(0,0,0,0.06)', borderTop: `4px solid ${c.color}`, textAlign: 'center', border: `1px solid ${border}` }}>
+            <div style={{ fontSize: 12, color: textSoft, marginBottom: 6 }}>{c.label}</div>
             <div style={{ fontSize: 26, fontWeight: 700, color: c.color }}>{c.value}</div>
           </div>
         ))}
       </div>
 
       {/* Daily table moved from Attendance */}
-      <div style={{ background: '#fff', borderRadius: 14, overflow: 'hidden', boxShadow: '0 1px 6px rgba(0,0,0,0.06)', marginBottom: 20 }}>
+      <div style={{ background: panelBg, borderRadius: 14, overflow: 'hidden', boxShadow: '0 1px 6px rgba(0,0,0,0.06)', marginBottom: 20, border: `1px solid ${border}` }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
           <thead>
             <tr style={{ background: '#2563eb' }}>
-              {['Date', 'Day', 'In Time', 'Logout for Lunch', 'Login from Lunch', 'Logout', 'Status'].map(h => (
+              {['Date', 'Day', 'In Time', 'Logout for Lunch', 'Login from Lunch', 'Logout', 'Late Entry', 'Early Exit', 'Status'].map(h => (
                 <th key={h} style={{ padding: '11px 16px', textAlign: 'left', color: '#fff', fontWeight: 600, fontSize: 12 }}>{h}</th>
               ))}
             </tr>
@@ -396,6 +487,7 @@ export default function Report({ employee, selectedMonth, showNotif }) {
                 : null;
               const status = isHoliday ? 'national-holiday' : leaveStatus || rec.status;
               const isPresent = status === 'present';
+              const { isLateEntry, isEarlyExit } = evaluateLateEarly(rec, ruleConfig);
               const dayName = DAYS_FULL[date.getDay()];
               const statusLabel = isHoliday
                 ? `National Holiday (${holidayName})`
@@ -414,13 +506,19 @@ export default function Report({ employee, selectedMonth, showNotif }) {
               const dateLabel = `${pad(rec.day)} ${MONTHS[mo - 1].slice(0, 3)} ${yr}`;
               const dayLabel = DAYS_SHORT[date.getDay()];
               return (
-                <tr key={i} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                <tr key={i} style={{ borderBottom: `1px solid ${border}` }}>
                   <td style={{ padding: '10px 16px', color: '#7c3aed', fontWeight: 700 }}>{dateLabel}</td>
                   <td style={{ padding: '10px 16px', color: '#ec4899', fontWeight: 700 }}>{dayLabel}</td>
-                  <td style={{ padding: '10px 16px', color: '#000000', fontWeight: 600 }}>{isPresent ? rec.inTime : '--'}</td>
-                  <td style={{ padding: '10px 16px', color: '#000000', fontWeight: 600 }}>{isPresent ? (rec.logoutForLunch || '--') : '--'}</td>
-                  <td style={{ padding: '10px 16px', color: '#000000', fontWeight: 600 }}>{isPresent ? (rec.loginFromLunch || '--') : '--'}</td>
-                  <td style={{ padding: '10px 16px', color: '#000000', fontWeight: 600 }}>{isPresent ? (rec.logout || rec.outTime || '--') : '--'}</td>
+                  <td style={{ padding: '10px 16px', color: textMain, fontWeight: 600 }}>{isPresent ? rec.inTime : '--'}</td>
+                  <td style={{ padding: '10px 16px', color: textMain, fontWeight: 600 }}>{isPresent ? (rec.logoutForLunch || '--') : '--'}</td>
+                  <td style={{ padding: '10px 16px', color: textMain, fontWeight: 600 }}>{isPresent ? (rec.loginFromLunch || '--') : '--'}</td>
+                  <td style={{ padding: '10px 16px', color: textMain, fontWeight: 600 }}>{isPresent ? (rec.logout || rec.outTime || '--') : '--'}</td>
+                  <td style={{ padding: '10px 16px', color: isPresent && isLateEntry ? '#f59e0b' : textMuted, fontWeight: 600 }}>
+                    {isPresent ? (isLateEntry ? 'Yes' : 'No') : '--'}
+                  </td>
+                  <td style={{ padding: '10px 16px', color: isPresent && isEarlyExit ? '#ea580c' : textMuted, fontWeight: 600 }}>
+                    {isPresent ? (isEarlyExit ? 'Yes' : 'No') : '--'}
+                  </td>
                   <td style={{ padding: '10px 16px', color: statusColor, fontWeight: 600 }}>{statusLabel}</td>
                 </tr>
               );

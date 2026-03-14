@@ -2,18 +2,25 @@ import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 
 const TABS = [
-  { path: '/home',       label: 'Dashboard'  },
-  { path: '/attendance', label: 'Attendance' },
-  { path: '/report',     label: 'Report' },
-  { path: '/masters',    label: 'Masters'    },
-  { path: '/team',       label: 'Team'       },
-  { path: '/admin',      label: 'Admin'      },
+  { path: 'home', label: 'Dashboard' },
+  { path: 'attendance', label: 'Attendance' },
+  { path: 'report', label: 'Report' },
+  { path: 'masters', label: 'Masters' },
+  { path: 'team', label: 'Team' },
+  { path: 'admin', label: 'Admin' },
+  { path: 'chatbot', label: 'Chatbot' },
 ];
 
-export default function TopBar({ search, onSearch, selectedMonth, onMonthChange, theme, onToggleTheme }) {
+export default function TopBar({
+  search, onSearch, selectedMonth, onMonthChange, theme, onToggleTheme, basePath = '', hiddenTabs = [],
+  onOpenNotifications, unreadCount = 0,
+}) {
   const navigate  = useNavigate();
   const location  = useLocation();
   const isDark = theme === 'dark';
+  const cleanBase = basePath.replace(/\/$/, '');
+  const withBase = (path) => `${cleanBase}/${path}`;
+  const hidden = new Set(hiddenTabs);
 
   const [currentYear, currentMonth] = selectedMonth.split('-').map(Number);
   // Generate year and month options
@@ -34,33 +41,39 @@ export default function TopBar({ search, onSearch, selectedMonth, onMonthChange,
     <div style={{
       background: 'var(--surface-bg)', borderBottom: '1px solid var(--border-color)',
       padding: '0 24px', display: 'flex', alignItems: 'center', gap: 4,
-      height: 56, position: 'sticky', top: 0, zIndex: 100, flexShrink: 0,
+      minHeight: 56, position: 'sticky', top: 0, zIndex: 100, flexShrink: 0,
+      overflowX: 'auto', overflowY: 'hidden', whiteSpace: 'nowrap',
     }}>
-      {TABS.map(t => (
-        <button
-          key={t.path}
-          onClick={() => navigate(t.path)}
-          style={{
-            padding: '6px 16px', borderRadius: 8, border: 'none', cursor: 'pointer',
-            background: location.pathname === t.path
-              ? (t.path === '/admin' ? (isDark ? '#1e3a8a' : '#dbeafe') : '#2563eb')
-              : (t.path === '/admin' ? (isDark ? '#172554' : '#eff6ff') : 'transparent'),
-            color: location.pathname === t.path
-              ? (t.path === '/admin' ? (isDark ? '#bfdbfe' : '#1d4ed8') : '#fff')
-              : (t.path === '/admin' ? (isDark ? '#93c5fd' : '#2563eb') : 'var(--text-muted)'),
-            border: t.path === '/admin'
-              ? `1.5px solid ${location.pathname === t.path ? (isDark ? '#3b82f6' : '#93c5fd') : (isDark ? '#1d4ed8' : '#bfdbfe')}`
-              : 'none',
-            fontWeight: location.pathname === t.path ? 600 : 500,
-            fontSize: 13, fontFamily: 'inherit',
-          }}
-        >{t.label}</button>
-      ))}
+      {TABS.filter((t) => !hidden.has(t.path)).map((t) => {
+        const fullPath = withBase(t.path);
+        const isActive = location.pathname === fullPath;
+        return (
+          <button
+            key={t.path}
+            onClick={() => navigate(fullPath)}
+            style={{
+              padding: '6px 16px', borderRadius: 8, border: 'none', cursor: 'pointer',
+              flexShrink: 0,
+              background: isActive
+                ? (t.path === 'admin' ? (isDark ? '#1e3a8a' : '#dbeafe') : '#2563eb')
+                : (t.path === 'admin' ? (isDark ? '#172554' : '#eff6ff') : 'transparent'),
+              color: isActive
+                ? (t.path === 'admin' ? (isDark ? '#bfdbfe' : '#1d4ed8') : '#fff')
+                : (t.path === 'admin' ? (isDark ? '#93c5fd' : '#2563eb') : 'var(--text-muted)'),
+              border: t.path === 'admin'
+                ? `1.5px solid ${isActive ? (isDark ? '#3b82f6' : '#93c5fd') : (isDark ? '#1d4ed8' : '#bfdbfe')}`
+                : 'none',
+              fontWeight: isActive ? 600 : 500,
+              fontSize: 13, fontFamily: 'inherit',
+            }}
+          >{t.label}</button>
+        );
+      })}
 
       <div style={{ flex: 1 }} />
 
       {/* Search */}
-      <div style={{ position: 'relative', marginRight: 8 }}>
+      <div style={{ position: 'relative', marginRight: 8, flexShrink: 0 }}>
         <svg style={{ position: 'absolute', left: 9, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}
           width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-soft)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <circle cx="11" cy="11" r="7" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
@@ -77,6 +90,49 @@ export default function TopBar({ search, onSearch, selectedMonth, onMonthChange,
         />
       </div>
 
+      <button
+        type="button"
+        onClick={onOpenNotifications}
+        title="Notifications"
+        style={{
+          position: 'relative',
+          width: 34,
+          height: 34,
+          borderRadius: '50%',
+          border: '1px solid #f59e0b',
+          background: '#facc15',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          cursor: 'pointer',
+          marginRight: 8,
+          flexShrink: 0,
+        }}
+      >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#854d0e" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
+          <path d="M13.73 21a2 2 0 01-3.46 0" />
+        </svg>
+        {unreadCount > 0 && (
+          <span style={{
+            position: 'absolute',
+            top: -3,
+            right: -3,
+            minWidth: 16,
+            height: 16,
+            borderRadius: 999,
+            background: '#dc2626',
+            color: '#fff',
+            fontSize: 10,
+            lineHeight: '16px',
+            fontWeight: 700,
+            padding: '0 4px',
+          }}>
+            {unreadCount > 99 ? '99+' : unreadCount}
+          </span>
+        )}
+      </button>
+
       {/* Month/Year pickers */}
       <select
         value={currentMonth}
@@ -85,6 +141,7 @@ export default function TopBar({ search, onSearch, selectedMonth, onMonthChange,
           padding: '6px 10px', borderRadius: 8, border: '1px solid var(--border-color)',
           fontSize: 13, color: 'var(--text-muted)', background: 'var(--input-bg)', cursor: 'pointer',
           fontFamily: 'inherit', marginRight: 8,
+          flexShrink: 0,
         }}
       >
         {months.map(m => (
@@ -101,6 +158,7 @@ export default function TopBar({ search, onSearch, selectedMonth, onMonthChange,
           padding: '6px 10px', borderRadius: 8, border: '1px solid var(--border-color)',
           fontSize: 13, color: 'var(--text-muted)', background: 'var(--input-bg)', cursor: 'pointer',
           fontFamily: 'inherit', marginRight: 8,
+          flexShrink: 0,
         }}
       >
         {years.map(y => (
@@ -123,6 +181,7 @@ export default function TopBar({ search, onSearch, selectedMonth, onMonthChange,
           alignItems: 'center',
           justifyContent: 'center',
           cursor: 'pointer',
+          flexShrink: 0,
         }}
       >
         {isDark ? (

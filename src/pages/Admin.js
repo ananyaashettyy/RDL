@@ -8,12 +8,21 @@ import {
   updateAdminPassword,
   validateAdminCredentials,
 } from '../utils/adminUsersStorage';
+import {
+  deleteEmployeeCred,
+  getEmployeeCreds,
+  upsertEmployeeCred,
+  updateEmployeeCred,
+} from '../utils/employeeCredsStorage';
+import { EMPLOYEES as LOCAL_EMPLOYEES, DEPARTMENTS } from '../data/employees';
 
 const API_URL = window.location.protocol === 'file:' ? '' : '/upload_reports.php';
+const EMP_API_URL = window.location.protocol === 'file:' ? '' : '/employees.php';
 const NAME_RE = /^(January|February|March|April|May|June|July|August|September|October|November|December)_\d{4}\.(xls|xlsx)$/;
 
-export default function Admin({ showNotif }) {
+export default function Admin({ showNotif, basePath = '/admin' }) {
   const navigate = useNavigate();
+  const cleanBase = basePath.replace(/\/$/, '');
   const [file, setFile] = useState(null);
   const [dragging, setDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -25,6 +34,8 @@ export default function Admin({ showNotif }) {
   const [authUser, setAuthUser] = useState('');
   const [authPass, setAuthPass] = useState('');
   const [authError, setAuthError] = useState('');
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmMessage, setConfirmMessage] = useState('');
   const [adminNames, setAdminNames] = useState(() => getAdminUsernames());
   const [newAdminUser, setNewAdminUser] = useState('');
   const [newAdminPass, setNewAdminPass] = useState('');
@@ -32,9 +43,26 @@ export default function Admin({ showNotif }) {
   const [updatePass, setUpdatePass] = useState('');
   const [deleteAdminName, setDeleteAdminName] = useState('');
   const [adminSidebarOpen, setAdminSidebarOpen] = useState(false);
-  const [activeAdminSection, setActiveAdminSection] = useState('new');
+  const [activeAdminSection, setActiveAdminSection] = useState(null);
+  const [activeEmployeeSection, setActiveEmployeeSection] = useState(null);
+  const [employees, setEmployees] = useState([]);
+  const [departments, setDepartments] = useState([]);
+  const [newEmpName, setNewEmpName] = useState('');
+  const [newEmpUsername, setNewEmpUsername] = useState('');
+  const [newEmpPassword, setNewEmpPassword] = useState('');
+  const [newEmpDepartmentId, setNewEmpDepartmentId] = useState('');
+  const [updateEmpId, setUpdateEmpId] = useState('');
+  const [updateEmpUsername, setUpdateEmpUsername] = useState('');
+  const [updateEmpOldPassword, setUpdateEmpOldPassword] = useState('');
+  const [updateEmpNewPassword, setUpdateEmpNewPassword] = useState('');
+  const [deleteEmpId, setDeleteEmpId] = useState('');
   const inputRef = useRef(null);
   const authResolveRef = useRef(null);
+  const confirmResolveRef = useRef(null);
+
+  const sortedEmployees = useMemo(() => (
+    [...employees].sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), undefined, { sensitivity: 'base' }))
+  ), [employees]);
 
   const refreshAdminNames = () => {
     const next = getAdminUsernames();
@@ -60,11 +88,25 @@ export default function Admin({ showNotif }) {
     authResolveRef.current = resolve;
   });
 
+  const requestConfirm = (message) => new Promise((resolve) => {
+    setConfirmMessage(message);
+    setConfirmOpen(true);
+    confirmResolveRef.current = resolve;
+  });
+
   const resolveAuth = (ok) => {
     setAuthOpen(false);
     if (authResolveRef.current) {
       authResolveRef.current(ok);
       authResolveRef.current = null;
+    }
+  };
+
+  const resolveConfirm = (ok) => {
+    setConfirmOpen(false);
+    if (confirmResolveRef.current) {
+      confirmResolveRef.current(ok);
+      confirmResolveRef.current = null;
     }
   };
 
@@ -75,6 +117,180 @@ export default function Admin({ showNotif }) {
       return;
     }
     resolveAuth(true);
+  };
+
+  const setEmployeeLists = (list) => {
+    setEmployees(list);
+    if (!list.find((e) => String(e.id) === String(updateEmpId))) {
+      setUpdateEmpId(list[0]?.id ? String(list[0].id) : '');
+    }
+    if (!list.find((e) => String(e.id) === String(deleteEmpId))) {
+      setDeleteEmpId(list[0]?.id ? String(list[0].id) : '');
+    }
+  };
+
+  const loadLocalEmployees = () => {
+    const list = LOCAL_EMPLOYEES.map((e) => ({ id: String(e.id), name: e.displayName || e.name || '' }));
+    setEmployeeLists(list);
+  };
+
+  const loadLocalDepartments = () => {
+    const list = DEPARTMENTS.map((d) => ({ id: String(d.id), name: d.name }));
+    setDepartments(list);
+    if (!newEmpDepartmentId) {
+      setNewEmpDepartmentId(list[0]?.id ? String(list[0].id) : '');
+    }
+  };
+
+  const fetchEmployees = async () => {
+    if (!EMP_API_URL) {
+      loadLocalEmployees();
+      return;
+    }
+    try {
+      const res = await fetch(EMP_API_URL);
+      const json = await res.json();
+      const list = Array.isArray(json?.data) ? json.data : [];
+      if (!list.length) {
+        loadLocalEmployees();
+        return;
+      }
+      setEmployeeLists(list);
+    } catch (e) {
+      loadLocalEmployees();
+    }
+  };
+
+  const fetchDepartments = async () => {
+    if (!EMP_API_URL) {
+      loadLocalDepartments();
+      return;
+    }
+    try {
+      const res = await fetch('/departments.php');
+      const json = await res.json();
+      const list = Array.isArray(json?.data) ? json.data.map((d) => ({ id: String(d.id), name: d.name })) : [];
+      if (!list.length) {
+        loadLocalDepartments();
+        return;
+      }
+      setDepartments(list);
+      if (!newEmpDepartmentId) {
+        setNewEmpDepartmentId(list[0]?.id ? String(list[0].id) : '');
+      }
+    } catch {
+      loadLocalDepartments();
+    }
+  };
+
+  const handleCreateEmployee = async () => {
+    if (!EMP_API_URL) {
+      showNotif?.('Employee management is not available in desktop mode.', 'error');
+      return;
+    }
+    if (!newEmpName || !newEmpUsername || !newEmpPassword || !newEmpDepartmentId) {
+      showNotif?.('Please enter name, username, password, and department.', 'error');
+      return;
+    }
+    const ok = await requestAuth('Confirm Add Employee');
+    if (!ok) return;
+    const confirm = await requestConfirm('Are you sure you want to add this new employee?');
+    if (!confirm) return;
+    const empCodes = employees.map((e) => Number(e.emp_code)).filter((n) => Number.isFinite(n));
+    const nextCode = empCodes.length ? String(Math.max(...empCodes) + 1) : String(Date.now());
+    const body = {
+      emp_code: nextCode,
+      name: newEmpName,
+      department_id: Number(newEmpDepartmentId) || 1,
+      section_id: 1,
+      email: '',
+      phone: '',
+      join_date: new Date().toISOString().slice(0, 10),
+    };
+    try {
+      const res = await fetch(EMP_API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const json = await res.json();
+      if (!res.ok || !json?.success) throw new Error(json?.error || 'Create failed');
+      const empId = json.id || body.emp_code;
+      const credRes = upsertEmployeeCred({
+        employeeId: empId,
+        name: newEmpName,
+        username: newEmpUsername,
+        password: newEmpPassword,
+      });
+      if (!credRes.ok) throw new Error(credRes.error || 'Failed to save employee credentials.');
+      setNewEmpName('');
+      setNewEmpUsername('');
+      setNewEmpPassword('');
+      await fetchEmployees();
+      showNotif?.('Employee created successfully.');
+    } catch (e) {
+      showNotif?.(e?.message || 'Failed to create employee.', 'error');
+    }
+  };
+
+  const handleUpdateEmployee = async () => {
+    if (!updateEmpId || !updateEmpUsername || !updateEmpOldPassword || !updateEmpNewPassword) {
+      showNotif?.('Please select employee and enter username, old password, and new password.', 'error');
+      return;
+    }
+    const ok = await requestAuth('Confirm Update Employee');
+    if (!ok) return;
+    const confirm = await requestConfirm('Are you sure you want to update this employee?');
+    if (!confirm) return;
+    const emp = employees.find((e) => String(e.id) === String(updateEmpId));
+    if (!emp) {
+      showNotif?.('Employee not found.', 'error');
+      return;
+    }
+    const existing = getEmployeeCreds().find((c) => String(c.employeeId) === String(emp.id));
+    if (!existing) {
+      showNotif?.('Employee credentials not found. Please add credentials first.', 'error');
+      return;
+    }
+    if (existing.password !== updateEmpOldPassword) {
+      showNotif?.('Old password does not match.', 'error');
+      return;
+    }
+    const res = updateEmployeeCred(emp.id, updateEmpUsername, updateEmpNewPassword);
+    if (!res.ok) {
+      showNotif?.(res.error, 'error');
+      return;
+    }
+    setUpdateEmpUsername('');
+    setUpdateEmpOldPassword('');
+    setUpdateEmpNewPassword('');
+    await fetchEmployees();
+    showNotif?.('Employee updated successfully.');
+  };
+
+  const handleDeleteEmployee = async () => {
+    if (!deleteEmpId) {
+      showNotif?.('Select an employee to delete.', 'error');
+      return;
+    }
+    const ok = await requestAuth('Confirm Delete Employee');
+    if (!ok) return;
+    const confirm = await requestConfirm('Are you sure you want to delete this employee?');
+    if (!confirm) return;
+    if (!EMP_API_URL) {
+      showNotif?.('Employee management is not available in desktop mode.', 'error');
+      return;
+    }
+    try {
+      const res = await fetch(`${EMP_API_URL}?id=${encodeURIComponent(deleteEmpId)}`, { method: 'DELETE' });
+      const json = await res.json();
+      if (!res.ok || !json?.success) throw new Error(json?.error || 'Delete failed');
+      deleteEmployeeCred(deleteEmpId);
+      await fetchEmployees();
+      showNotif?.('Employee deleted successfully.');
+    } catch (e) {
+      showNotif?.(e?.message || 'Failed to delete employee.', 'error');
+    }
   };
 
   const handleCreateAdmin = () => {
@@ -123,16 +339,22 @@ export default function Admin({ showNotif }) {
       if (!alive) return;
       if (!ok) {
         showNotif?.('Admin access cancelled.', 'error');
-        navigate('/home', { replace: true });
+        navigate(`${cleanBase}/home`, { replace: true });
         return;
       }
       setAuthorized(true);
+      fetchEmployees();
+      fetchDepartments();
     })();
     return () => {
       alive = false;
       if (authResolveRef.current) {
         authResolveRef.current(false);
         authResolveRef.current = null;
+      }
+      if (confirmResolveRef.current) {
+        confirmResolveRef.current(false);
+        confirmResolveRef.current = null;
       }
     };
   }, [navigate, showNotif]);
@@ -319,7 +541,11 @@ export default function Admin({ showNotif }) {
             className={`admin-sidebar-overlay ${adminSidebarOpen ? 'open' : ''}`}
             onClick={() => setAdminSidebarOpen(false)}
           />
-          <aside className={`admin-sidebar ${adminSidebarOpen ? 'open' : ''}`} aria-label="Admin management">
+          <aside
+            className={`admin-sidebar ${adminSidebarOpen ? 'open' : ''}`}
+            aria-label="Admin management"
+            onClick={() => { setActiveAdminSection(null); setActiveEmployeeSection(null); }}
+          >
             <div className="admin-sidebar-head">
               <h3>Admin Management</h3>
               <button
@@ -331,32 +557,35 @@ export default function Admin({ showNotif }) {
                 x
               </button>
             </div>
+            <div className="admin-sidebar-body" onClick={(e) => e.stopPropagation()}>
+            <div className="admin-sidebar-top">
             <div className="admin-sidebar-tabs">
               <button
                 type="button"
                 className={`admin-sidebar-tab ${activeAdminSection === 'new' ? 'active' : ''}`}
-                onClick={() => setActiveAdminSection('new')}
+                onClick={() => setActiveAdminSection((prev) => (prev === 'new' ? null : 'new'))}
               >
                 New Admin
               </button>
               <button
                 type="button"
                 className={`admin-sidebar-tab ${activeAdminSection === 'update' ? 'active' : ''}`}
-                onClick={() => setActiveAdminSection('update')}
+                onClick={() => setActiveAdminSection((prev) => (prev === 'update' ? null : 'update'))}
               >
                 Update Admin
               </button>
               <button
                 type="button"
                 className={`admin-sidebar-tab ${activeAdminSection === 'delete' ? 'active' : ''}`}
-                onClick={() => setActiveAdminSection('delete')}
+                onClick={() => setActiveAdminSection((prev) => (prev === 'delete' ? null : 'delete'))}
               >
                 Delete Admin
               </button>
             </div>
 
+            <div>
             {activeAdminSection === 'new' && (
-              <div className="admin-sidebar-card">
+              <div className="admin-sidebar-card" onClick={(e) => e.stopPropagation()}>
                 <div className="admin-sidebar-card-title">New Admin</div>
                 <label className="admin-sidebar-label">Username</label>
                 <input
@@ -382,7 +611,7 @@ export default function Admin({ showNotif }) {
             )}
 
             {activeAdminSection === 'update' && (
-              <div className="admin-sidebar-card">
+              <div className="admin-sidebar-card" onClick={(e) => e.stopPropagation()}>
                 <div className="admin-sidebar-card-title">Update Admin</div>
                 <label className="admin-sidebar-label">Admin Name</label>
                 <select
@@ -412,7 +641,7 @@ export default function Admin({ showNotif }) {
             )}
 
             {activeAdminSection === 'delete' && (
-              <div className="admin-sidebar-card">
+              <div className="admin-sidebar-card" onClick={(e) => e.stopPropagation()}>
                 <div className="admin-sidebar-card-title">Delete Admin</div>
                 <label className="admin-sidebar-label">Admin Name</label>
                 <select
@@ -433,6 +662,162 @@ export default function Admin({ showNotif }) {
                 </button>
               </div>
             )}
+            </div>
+            </div>
+
+            <div className="admin-sidebar-divider admin-sidebar-divider-employee" />
+            <div className="admin-sidebar-employee-footer">
+              <div className="admin-sidebar-tabs admin-sidebar-tabs-employee">
+                <button
+                  type="button"
+                  className={`admin-sidebar-tab ${activeEmployeeSection === 'new' ? 'active' : ''}`}
+                  onClick={() => setActiveEmployeeSection((prev) => (prev === 'new' ? null : 'new'))}
+                >
+                  New Employee
+                </button>
+                <button
+                  type="button"
+                  className={`admin-sidebar-tab ${activeEmployeeSection === 'update' ? 'active' : ''}`}
+                  onClick={() => setActiveEmployeeSection((prev) => (prev === 'update' ? null : 'update'))}
+                >
+                  Update Employee
+                </button>
+                <button
+                  type="button"
+                  className={`admin-sidebar-tab ${activeEmployeeSection === 'delete' ? 'active' : ''}`}
+                  onClick={() => setActiveEmployeeSection((prev) => (prev === 'delete' ? null : 'delete'))}
+                >
+                  Delete Employee
+                </button>
+              </div>
+
+              <div className="admin-sidebar-employee-grid">
+                <div>
+                  {activeEmployeeSection === 'new' && (
+                    <div className="admin-sidebar-card" onClick={(e) => e.stopPropagation()}>
+                      <div className="admin-sidebar-card-title">New Employee</div>
+                      <label className="admin-sidebar-label">Name</label>
+                      <input
+                        value={newEmpName}
+                        onChange={(e) => setNewEmpName(e.target.value)}
+                        className="admin-sidebar-input"
+                      />
+                      <label className="admin-sidebar-label">Username</label>
+                      <input
+                        value={newEmpUsername}
+                        onChange={(e) => setNewEmpUsername(e.target.value)}
+                        className="admin-sidebar-input"
+                      />
+                      <label className="admin-sidebar-label">Password</label>
+                      <input
+                        type="password"
+                        value={newEmpPassword}
+                        onChange={(e) => setNewEmpPassword(e.target.value)}
+                        className="admin-sidebar-input"
+                      />
+                      <label className="admin-sidebar-label">Department</label>
+                      <select
+                        value={newEmpDepartmentId}
+                        onChange={(e) => setNewEmpDepartmentId(e.target.value)}
+                        className="admin-sidebar-input"
+                      >
+                        <option value="">Select department</option>
+                        {departments.map((dept) => (
+                          <option key={dept.id} value={dept.id}>{dept.name}</option>
+                        ))}
+                      </select>
+                      <button
+                        type="button"
+                        onClick={handleCreateEmployee}
+                        className="admin-sidebar-btn admin-sidebar-btn-green"
+                      >
+                        Add Employee
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  {activeEmployeeSection === 'update' && (
+                    <div className="admin-sidebar-card" onClick={(e) => e.stopPropagation()}>
+                      <div className="admin-sidebar-card-title">Update Employee</div>
+                      <label className="admin-sidebar-label">Employee Name</label>
+                      <select
+                        value={updateEmpId}
+                        onChange={(e) => {
+                          const nextId = e.target.value;
+                          setUpdateEmpId(nextId);
+                          const creds = getEmployeeCreds().find((c) => String(c.employeeId) === String(nextId));
+                          setUpdateEmpUsername(creds?.username || '');
+                          setUpdateEmpOldPassword('');
+                          setUpdateEmpNewPassword('');
+                        }}
+                        className="admin-sidebar-input"
+                      >
+                        <option value="">Select employee</option>
+                        {sortedEmployees.map((emp) => (
+                          <option key={emp.id} value={emp.id}>{emp.name}</option>
+                        ))}
+                      </select>
+                      <label className="admin-sidebar-label">Username</label>
+                      <input
+                        value={updateEmpUsername}
+                        onChange={(e) => setUpdateEmpUsername(e.target.value)}
+                        className="admin-sidebar-input"
+                      />
+                      <label className="admin-sidebar-label">Old Password</label>
+                      <input
+                        type="password"
+                        value={updateEmpOldPassword}
+                        onChange={(e) => setUpdateEmpOldPassword(e.target.value)}
+                        className="admin-sidebar-input"
+                      />
+                      <label className="admin-sidebar-label">New Password</label>
+                      <input
+                        type="password"
+                        value={updateEmpNewPassword}
+                        onChange={(e) => setUpdateEmpNewPassword(e.target.value)}
+                        className="admin-sidebar-input"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleUpdateEmployee}
+                        className="admin-sidebar-btn admin-sidebar-btn-blue"
+                      >
+                        Save
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  {activeEmployeeSection === 'delete' && (
+                    <div className="admin-sidebar-card" onClick={(e) => e.stopPropagation()}>
+                      <div className="admin-sidebar-card-title">Delete Employee</div>
+                      <label className="admin-sidebar-label">Employee Name</label>
+                      <select
+                        value={deleteEmpId}
+                        onChange={(e) => setDeleteEmpId(e.target.value)}
+                        className="admin-sidebar-input"
+                      >
+                    <option value="">Select employee</option>
+                    {sortedEmployees.map((emp) => (
+                      <option key={emp.id} value={emp.id}>{emp.name}</option>
+                    ))}
+                  </select>
+                      <button
+                        type="button"
+                        onClick={handleDeleteEmployee}
+                        className="admin-sidebar-btn admin-sidebar-btn-red"
+                      >
+                        Delete Employee
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+            </div>
           </aside>
         </>
       )}
@@ -466,6 +851,22 @@ export default function Admin({ showNotif }) {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      {confirmOpen && (
+        <div className="admin-confirm-overlay">
+          <div className="admin-confirm-modal" role="dialog" aria-modal="true" aria-label="Confirmation">
+            <h3 className="admin-confirm-title">Please Confirm</h3>
+            <p className="admin-confirm-message">{confirmMessage}</p>
+            <div className="admin-confirm-actions">
+              <button type="button" className="admin-confirm-btn admin-confirm-btn-ghost" onClick={() => resolveConfirm(false)}>
+                Cancel
+              </button>
+              <button type="button" className="admin-confirm-btn admin-confirm-btn-primary" onClick={() => resolveConfirm(true)}>
+                Confirm
+              </button>
+            </div>
           </div>
         </div>
       )}

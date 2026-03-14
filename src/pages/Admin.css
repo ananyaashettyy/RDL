@@ -46,7 +46,9 @@
   transform: translateX(100%);
   transition: transform 0.22s ease;
   z-index: 1100;
-  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   padding: 16px;
 }
 
@@ -59,6 +61,29 @@
   align-items: center;
   justify-content: space-between;
   margin-bottom: 12px;
+}
+
+.admin-sidebar-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow-y: auto;
+  padding-bottom: 12px;
+  flex: 1;
+  min-height: 0;
+}
+
+.admin-sidebar-top {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.admin-sidebar-divider {
+  border-top: 1px solid #e2e8f0;
+  margin: 6px 0;
 }
 
 .admin-sidebar-head h3 {
@@ -92,6 +117,32 @@
   margin-bottom: 12px;
 }
 
+.admin-sidebar-employee-block {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.admin-sidebar-tabs-employee {
+  margin-bottom: 6px;
+}
+
+.admin-sidebar-employee-footer {
+  margin-top: auto;
+  padding-top: 6px;
+}
+
+.admin-sidebar-employee-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+@media (max-width: 520px) {
+  .admin-sidebar-employee-grid {
+    grid-template-columns: 1fr;
+  }
+}
 .admin-sidebar-tab {
   border: 1px solid #cbd5e1;
   background: #f8fafc;
@@ -238,6 +289,63 @@
 }
 
 .admin-auth-btn-primary {
+  background: #2563eb;
+  color: #ffffff;
+}
+
+.admin-confirm-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1250;
+  padding: 16px;
+}
+
+.admin-confirm-modal {
+  width: 100%;
+  max-width: 420px;
+  background: #ffffff;
+  border-radius: 14px;
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.32);
+  padding: 22px 20px;
+}
+
+.admin-confirm-title {
+  margin: 0 0 8px;
+  font-size: 18px;
+  color: #0f172a;
+}
+
+.admin-confirm-message {
+  margin: 0 0 16px;
+  font-size: 13px;
+  color: #475569;
+}
+
+.admin-confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.admin-confirm-btn {
+  border: none;
+  border-radius: 9px;
+  padding: 9px 14px;
+  font-size: 13px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.admin-confirm-btn-ghost {
+  background: #f1f5f9;
+  color: #334155;
+}
+
+.admin-confirm-btn-primary {
   background: #2563eb;
   color: #ffffff;
 }

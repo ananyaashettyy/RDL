@@ -15,7 +15,12 @@
     "start": "react-scripts start",
     "build": "react-scripts build",
     "desktop": "npm run build && electron .",
-    "desktop:dist": "npm run build && electron-builder --win nsis"
+    "desktop:dist": "npm run build && electron-builder --win nsis",
+    "test:cases": "node scripts/testcases.js run",
+    "test:report": "node scripts/testcases.js report",
+    "test:watch": "node scripts/testcases.js watch",
+    "test:merge": "node scripts/testcases.js merge --remove",
+    "test:xlsx": "node scripts/testcases.js xlsx --in testing/test-cases.csv --out testing/test-case.xlsx --sheet \"Test Cases\""
   },
   "devDependencies": {
     "electron": "^32.2.0",
@@ -23,8 +28,9 @@
   },
   "build": {
     "extends": null,
-    "appId": "com.attendance.system",
-    "productName": "Attendance System",
+    "appId": "com.rdl.attendance",
+    "productName": "RDL Attendance",
+    "executableName": "RDL Attendance",
     "extraMetadata": {
       "main": "electron/main.js"
     },
@@ -37,6 +43,7 @@
       "output": "dist-desktop"
     },
     "win": {
+      "icon": "electron/icon.ico",
       "target": [
         "nsis"
       ],
@@ -44,12 +51,22 @@
     },
     "nsis": {
       "oneClick": true,
-      "allowToChangeInstallationDirectory": false
+      "allowToChangeInstallationDirectory": false,
+      "installerIcon": "electron/icon.ico",
+      "uninstallerIcon": "electron/icon.ico"
     }
   },
   "browserslist": {
-    "production": [">0.2%", "not dead"],
-    "development": ["last 1 chrome version"]
+    "production": [
+      ">0.2%",
+      "not dead",
+      "ie 11"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 edge version"
+    ]
   },
   "proxy": "http://localhost/attendance-api"
 }

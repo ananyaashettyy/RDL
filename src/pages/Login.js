@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import './Login.css';
 import { validateAdminCredentials } from '../utils/adminUsersStorage';
 
-export default function Login({ onLogin }) {
+export default function Login({ onLogin, redirectTo = '/admin/home', portalLabel = 'ADMIN', allowedUsernames = [] }) {
   const navigate = useNavigate();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -11,13 +11,39 @@ export default function Login({ onLogin }) {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (validateAdminCredentials(username, password)) {
-      setError('');
-      onLogin();
-      navigate('/home', { replace: true });
+    if (!username.trim() && !password.trim()) {
+      setError('Enter a valid username and password.');
       return;
     }
-    setError('Invalid credentials.');
+    if (!username.trim()) {
+      setError('Enter a valid username.');
+      return;
+    }
+    if (!password.trim()) {
+      setError('Enter a valid password.');
+      return;
+    }
+
+    const isUserPortal = portalLabel === 'USER';
+    const normalizedUsername = username.trim().toLowerCase();
+    const normalizedPassword = password.trim().toLowerCase();
+    const isLowercaseInput = username.trim() === normalizedUsername && password.trim() === normalizedPassword;
+    const allowedUsernameSet = new Set(allowedUsernames.map((u) => String(u).toLowerCase()));
+
+    const isValid = isUserPortal
+      ? isLowercaseInput && normalizedUsername === normalizedPassword && allowedUsernameSet.has(normalizedUsername)
+      : validateAdminCredentials(username, password);
+
+    if (isValid) {
+      setError('');
+      onLogin({
+        portal: isUserPortal ? 'USER' : 'ADMIN',
+        username: normalizedUsername,
+      });
+      navigate(redirectTo, { replace: true });
+      return;
+    }
+    setError('Enter a valid username and password.');
   };
 
   return (
@@ -30,7 +56,31 @@ export default function Login({ onLogin }) {
       <div style={{ position: 'absolute', inset: 0, background: 'rgba(15, 23, 42, 0.38)' }} />
 
       <div style={{ position: 'relative', zIndex: 1, minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-        <div style={{ width: '100%', maxWidth: 520, background: 'rgba(255,255,255,0.94)', borderRadius: 16, boxShadow: '0 18px 45px rgba(15, 23, 42, 0.26)', padding: '32px 28px' }}>
+        <div style={{ width: '100%', maxWidth: 520, background: 'rgba(255,255,255,0.94)', borderRadius: 16, boxShadow: '0 18px 45px rgba(15, 23, 42, 0.26)', padding: '32px 28px', position: 'relative' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+            <button
+              type="button"
+              onClick={() => navigate('/', { replace: true })}
+              style={{ border: '1px solid #cbd5e1', background: '#fff', color: '#0f172a', borderRadius: 8, height: 34, padding: '0 12px', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}
+            >
+              Back
+            </button>
+
+            <span
+              style={{
+                background: '#0f766e',
+                color: '#ffffff',
+                borderRadius: 999,
+                padding: '4px 12px',
+                fontSize: 11,
+                fontWeight: 700,
+                letterSpacing: '0.05em',
+              }}
+            >
+              {portalLabel}
+            </span>
+          </div>
+
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <img
               src="/logo.jpg"

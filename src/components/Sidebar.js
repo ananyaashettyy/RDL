@@ -1,17 +1,72 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 
 const NAV = [];
 
-export default function Sidebar({ employees, selectedEmployee, onSelectEmployee, collapsed, onToggle, onLogout, theme }) {
+export default function Sidebar({ employees, selectedEmployee, onSelectEmployee, collapsed, onToggle, onLogout, theme, basePath = '' }) {
   const location = useLocation();
   const navigate = useNavigate();
   const isDark = theme === 'dark';
+  const cleanBase = basePath.replace(/\/$/, '');
+  const withBase = (path) => `${cleanBase}/${path}`;
+  const expandedWidth = 'min(220px, 28vw)';
+
+  const PHOTO_OVERRIDES = {
+    'Vaishak K': 'Vaishakk',
+  };
+
+  const getFirstName = (name) => {
+    const first = String(name || '').trim().split(/\s+/)[0] || '';
+    const cleaned = first.replace(/[^a-zA-Z]/g, '');
+    if (!cleaned) return '';
+    return cleaned.charAt(0).toUpperCase() + cleaned.slice(1).toLowerCase();
+  };
+
+  const Avatar = ({ name, id }) => {
+    const [failed, setFailed] = useState(false);
+    const trimmed = String(name || '').trim();
+    const override = PHOTO_OVERRIDES[trimmed] || '';
+    const first = getFirstName(name);
+    const photoKey = override || first;
+    const photoSrc = photoKey ? `/Images/${photoKey}.png` : '';
+    const showImage = photoSrc && !failed;
+    const fallbackLetter = String(name || '').trim().charAt(0) || '?';
+
+    return (
+      <div
+        style={{
+          width: 26,
+          height: 26,
+          borderRadius: '50%',
+          flexShrink: 0,
+          background: `hsl(${parseInt(id, 10) * 47 % 360},58%,52%)`,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          color: '#fff',
+          fontSize: 11,
+          fontWeight: 700,
+          overflow: 'hidden',
+        }}
+      >
+        {showImage ? (
+          <img
+            src={photoSrc}
+            alt={name}
+            onError={() => setFailed(true)}
+            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+          />
+        ) : (
+          fallbackLetter
+        )}
+      </div>
+    );
+  };
 
   return (
     <div style={{
-      width: collapsed ? 64 : 220,
-      minWidth: collapsed ? 64 : 220,
+      width: collapsed ? 64 : expandedWidth,
+      minWidth: collapsed ? 64 : expandedWidth,
       background: 'var(--surface-bg)',
       borderRight: '1px solid var(--border-color)',
       display: 'flex',
@@ -60,7 +115,7 @@ export default function Sidebar({ employees, selectedEmployee, onSelectEmployee,
           return (
             <div
               key={emp.id}
-              onClick={() => { onSelectEmployee(emp); navigate('/attendance'); }}
+              onClick={() => { onSelectEmployee(emp); navigate(withBase('attendance')); }}
               title={emp.displayName}
               style={{
                 padding: collapsed ? '10px 14px' : '8px 14px',
@@ -73,12 +128,7 @@ export default function Sidebar({ employees, selectedEmployee, onSelectEmployee,
                 transition: 'background 0.12s',
               }}
             >
-              <div style={{
-                width: 26, height: 26, borderRadius: '50%', flexShrink: 0,
-                background: `hsl(${parseInt(emp.id) * 47 % 360},58%,52%)`,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                color: '#fff', fontSize: 11, fontWeight: 700,
-              }}>{emp.displayName[0]}</div>
+              <Avatar name={emp.displayName} id={emp.id} />
               {!collapsed && <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{emp.displayName}</span>}
             </div>
           );
